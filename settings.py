@@ -7,11 +7,13 @@ try:
     from Tkinter import *
     import ttk
     import tkMessageBox as messagebox
+
 except ImportError:
     # for Python3
     from tkinter import *
     from tkinter import ttk
     from tkinter import messagebox
+
 import os
 import sys
 import json
@@ -210,6 +212,8 @@ def get_default_config():
     config_dict["homepage"] = CONST_HOMEPAGE_DEFAULT
     config_dict["adult_picker"] = ""
     config_dict["force_adult_picker"] = True
+    config_dict["enable_eager_booking"] = False    
+    config_dict["book_now_date"] = ""
     config_dict["book_now_time"] = ""
     config_dict["book_now_time_alt"] = ""
     config_dict["user_name"] = ""
@@ -256,6 +260,7 @@ def btn_save_act(slience_mode=False):
     global combo_language
 
     global txt_adult_picker
+    global txt_book_now_date
     global txt_book_now_time
     global txt_book_now_time_alt
 
@@ -327,7 +332,9 @@ def btn_save_act(slience_mode=False):
         else:
             config_dict["user_email"] = txt_user_email.get().strip()
 
+
     if is_all_data_correct:
+        config_dict["book_now_date"] = txt_book_now_date.get().strip()
         config_dict["book_now_time_alt"] = txt_book_now_time_alt.get().strip()
         config_dict["book_now_time_alt"] = format_time_string(config_dict["book_now_time_alt"])
 
@@ -401,9 +408,6 @@ def btn_run_clicked():
 
 def open_url(url):
     webbrowser.open_new(url)
-
-def btn_exit_clicked():
-    root.destroy()
 
 def callbackLanguageOnChange(event):
     applyNewLanguage()
@@ -539,6 +543,8 @@ def PreferenctTab(root, config_dict, language_code, UI_PADDING_X):
     print("homepage", config_dict["homepage"])
     print("adult_picker", config_dict["adult_picker"])
     print("force_adult_picker", config_dict["force_adult_picker"])
+    print("enable_eager_booking", config_dict["enable_eager_booking"])
+    print("book_now_date", config_dict["book_now_date"])
     print("book_now_time", config_dict["book_now_time"])
     print("book_now_time_alt", config_dict["book_now_time_alt"])
     print("user_name", config_dict["user_name"])
@@ -559,6 +565,7 @@ def PreferenctTab(root, config_dict, language_code, UI_PADDING_X):
     row_count = 0
 
     frame_group_header = Frame(root)
+
     group_row_count = 0
 
     global lbl_homepage
@@ -607,6 +614,18 @@ def PreferenctTab(root, config_dict, language_code, UI_PADDING_X):
     global chk_force_adult_picker
     chk_force_adult_picker = Checkbutton(frame_group_header, text=translate[language_code]["enable"], variable=chk_state_force_adult_picker)
     chk_force_adult_picker.grid(column=1, row=group_row_count, sticky = W)
+
+    group_row_count+=1
+
+    # Date
+    global lbl_book_now_date
+    lbl_book_now_date = Label(frame_group_header, text="預定日期")
+    lbl_book_now_date.grid(column=0, row=group_row_count, sticky = E)
+
+    global txt_book_now_date
+    txt_book_now_date_value = StringVar(frame_group_header, value=config_dict["book_now_date"])
+    txt_book_now_date = Entry(frame_group_header, width=20, textvariable = txt_book_now_date_value)
+    txt_book_now_date.grid(column=1, row=group_row_count, sticky = W)
 
     group_row_count+=1
 

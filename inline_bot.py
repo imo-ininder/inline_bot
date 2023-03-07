@@ -334,6 +334,7 @@ def is_House_Rules_poped(driver):
         try:
             if house_rules_div.is_enabled():
                 is_visible = True
+                ret = True
         except Exception as exc:
             pass
         if is_visible:
@@ -349,7 +350,7 @@ def is_House_Rules_poped(driver):
         # method 1: force enable, fail.
         # driver.execute_script("arguments[0].disabled = false;", commit)
 
-        # metho 2: scroll to end.
+        # method 2: scroll to end.
         houses_rules_scroll = None
         try:
             houses_rules_scroll = house_rules_div.find_element(By.XPATH, '//div[@data-show-scrollbar="true"]/div/div')
@@ -388,7 +389,7 @@ def is_House_Rules_poped(driver):
                 houses_rules_button.click()
             except Exception as exc:
                     try:
-                        driver.execute_script("arguments[0].click();", houses_rules_button);
+                        driver.execute_script("arguments[0].click();", houses_rules_button)
                     except Exception as exc2:
                         pass
 
@@ -830,6 +831,34 @@ def assign_adult_picker(driver, adult_picker, force_adult_picker):
 
     return is_adult_picker_assigned
 
+def assign_date_picker(driver, book_date):    
+    show_debug_message = False
+    day_table = None
+    try: 
+        day_table = driver.find_element(By.XPATH, "//div[@data-date='%s']"%book_date)
+    except Exception as exc:
+        if show_debug_message:
+            print("find time buttons excpetion:", exc)
+        pass
+
+    day_table_visible = False
+    try: 
+        if day_table.is_enabled():
+            day_table_visible = True
+    except Exception as exc:
+            pass
+    
+    if day_table_visible:
+        try:
+            day_table.click()
+        except Exception as exc:
+            try:
+                driver.execute_script("arguments[0].click();", day_table);
+            except Exception as exc2:
+                pass
+    return True
+
+
 def assign_time_picker(driver, book_now_time, book_now_time_alt):
     show_debug_message = True       # debug.
     #show_debug_message = False      # online
@@ -881,7 +910,34 @@ def assign_time_picker(driver, book_now_time, book_now_time_alt):
     
     return ret
 
+def click_new_book_button(driver):
+    show_debug_message = False
+    new_book_button = None
+    try: 
+        new_book_button = driver.find_element(By.XPATH, "//button[@data-cy='book-now-action-button']")
+    except Exception as exc:
+        if show_debug_message:
+            print("find new book buttons exception:", exc)
+        pass
+
+    new_book_button_visible = False
+    try: 
+        if new_book_button.is_enabled():
+            new_book_button_visible = True
+    except Exception as exc:
+            pass
+
+    if new_book_button_visible:
+        try:
+            new_book_button.click()
+        except Exception as exc:
+            try:
+                driver.execute_script("arguments[0].click();", new_book_button)
+            except Exception as exc2:
+                pass
+
 def inline_reg(driver, config_dict):
+
     show_debug_message = True       # debug.
     #show_debug_message = False      # online
 
@@ -896,24 +952,26 @@ def inline_reg(driver, config_dict):
         adult_picker = config_dict["adult_picker"]
         force_adult_picker = config_dict["force_adult_picker"]
 
-        # date picker.
+        # audit picker.
         is_adult_picker_assigned = assign_adult_picker(driver, adult_picker, force_adult_picker)
         if show_debug_message:
             print("is_adult_picker_assigned:", is_adult_picker_assigned)
-
-        if not is_adult_picker_assigned:
-            # retry once.
-            is_adult_picker_assigned = assign_adult_picker(driver, adult_picker, force_adult_picker)
-            if show_debug_message:
-                print("retry is_adult_picker_assigned:", is_adult_picker_assigned)
+        
+        # date picker.
+        book_now_date = config_dict["book_now_date"]
+        print(book_now_date)
+        if is_adult_picker_assigned:
+            is_date_picked = assign_date_picker(driver, book_now_date)
 
         # time picker.
         book_now_time = config_dict["book_now_time"]
         book_now_time_alt = config_dict["book_now_time_alt"]
-        if is_adult_picker_assigned:
+        if is_adult_picker_assigned and is_date_picked:
             ret = assign_time_picker(driver, book_now_time, book_now_time_alt)
             if show_debug_message:
                 print("assign_time_picker return:", ret)
+
+        click_new_book_button(driver)
 
     return ret
 
