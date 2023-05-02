@@ -586,7 +586,14 @@ def fill_personal_info(driver, config_dict):
         ret = fill_text_by_default(el_form, By.ID, 'phone', user_phone)
         ret = fill_text_by_default(el_form, By.ID, 'email', user_email)
         
-        
+        cc_auto_submit = config_dict["cc_auto_submit"]
+        cc_isneeded = False
+        if not cc_isneeded and cc_auto_submit:
+            print("press submit button.")
+            ret = button_submit(el_form, By.XPATH,'//button[@type="submit"]')
+            return ret
+
+
         cardholder_name = config_dict["cardholder_name"]
         cardholder_email = config_dict["cardholder_email"]
         ret = fill_text_by_default(el_form, By.ID, 'cardholder-name', cardholder_name)
@@ -595,7 +602,7 @@ def fill_personal_info(driver, config_dict):
         cc_number = config_dict["cc_number"]
         cc_exp = config_dict["cc_exp"]
         cc_ccv = config_dict["cc_ccv"]
-        
+
         iframes = None
         try:
             iframes = el_form.find_elements(By.TAG_NAME, "iframe")
@@ -654,24 +661,6 @@ def fill_personal_info(driver, config_dict):
             if item == False:
                 pass_all_check = False
 
-        # check agree
-        try:
-            #print("check agree...")
-            #driver.execute_script("$(\"input[type='checkbox']\").prop('checked', true);")
-            #driver.execute_script("document.getElementById(\"deposit-policy\").checked;")
-            #driver.execute_script("document.getElementById(\"privacy-policy\").checked;")
-            agree_ret = checkbox_agree(el_form, By.ID, 'deposit-policy')
-            if not agree_ret:
-                pass_all_check = False
-            agree_ret = checkbox_agree(el_form, By.ID, 'privacy-policy')
-            if not agree_ret:
-                pass_all_check = False
-        except Exception as exc:
-            print("javascript check agree fail")
-            print(exc)
-            pass
-
-        #print("auto_submit:", cc_auto_submit)
         if pass_all_check and cc_auto_submit:
             print("press submit button.")
             ret = button_submit(el_form, By.XPATH,'//button[@type="submit"]')
@@ -777,6 +766,8 @@ def book_time(el_time_picker_list, target_time):
     return ret, fail_code
 
 def assign_adult_picker(driver, adult_picker, force_adult_picker):
+
+    print("----------assign_adult_picker---------------")
     is_adult_picker_assigned = False
 
     # member number.
@@ -831,42 +822,52 @@ def assign_adult_picker(driver, adult_picker, force_adult_picker):
 
     return is_adult_picker_assigned
 
-def assign_date_picker(driver, book_date):    
-    show_debug_message = False
+def assign_date_picker(driver, book_date):   
+
+    print("----------assign_date_picker---------------")
+
     day_table = None
-    try: 
-        day_table = driver.find_element(By.XPATH, "//div[@data-date='%s']"%book_date)
-    except Exception as exc:
-        if show_debug_message:
-            print("find time buttons excpetion:", exc)
-        pass
 
     day_table_visible = False
-    try: 
-        if day_table.is_enabled():
-            day_table_visible = True
-    except Exception as exc:
-            pass
-    
-    if day_table_visible:
-        try:
-            day_table.click()
+    while day_table_visible != True :
+        try: 
+            day_table = driver.find_element(By.XPATH, "//div[@data-date='%s']"%book_date)
+            day_table_visible = day_table.is_enabled()
         except Exception as exc:
-            try:
-                driver.execute_script("arguments[0].click();", day_table);
-            except Exception as exc2:
-                pass
-    return True
+            print("wait until day_table avil:", exc)
+  
+    
+    x = book_date.split("-")
+    fixed_date = "{year}年{mon}月{day}日".format(year=x[0], mon=x[1].replace("0", ""), day=x[2])
+    target_date = None
 
+    max_attempts = 5
+    attempts = 0
+
+    while fixed_date != target_date and attempts < max_attempts:
+        try: 
+            driver.execute_script("arguments[0].click();", day_table)
+            target_date = driver.find_element(By.XPATH, "//button[@data-cy='target-date']").text
+            raise Exception(f"選擇日期 {date_to_pick} 失敗")
+        except Exception as exc:
+            attempts += 1
+            print("ATTEMPT :", attempts)
+            time.sleep(1)
+            
+    return fixed_date == target_date
 
 def assign_time_picker(driver, book_now_time, book_now_time_alt):
+
+    print("----------assign_t_picker---------------")
+
     show_debug_message = True       # debug.
     #show_debug_message = False      # online
 
-    ret = False
+    ret = True
 
     el_time_picker_list = None
     button_query_string = 'button.time-slot'
+
     try:
         el_time_picker_list = driver.find_elements(By.CSS_SELECTOR, button_query_string)
     except Exception as exc:
@@ -900,10 +901,16 @@ def assign_time_picker(driver, book_now_time, book_now_time_alt):
                     if show_debug_message:
                         print("booking ALT time:", book_now_time_alt)
                         print("booking ALT target time:", book_time_ret, book_fail_code)
+                    
+                    if book_fail_code > 0 :
+                        ret = False
+
         else:
+            ret = False
             if show_debug_message:
                 print("time element length zero...")
     else:
+        ret = False
         if show_debug_message:
             print("not found time elements.")
 
@@ -941,8 +948,6 @@ def inline_reg(driver, config_dict):
     show_debug_message = True       # debug.
     #show_debug_message = False      # online
 
-    ret = False
-
     house_rules_ret = is_House_Rules_poped(driver)
 
     if show_debug_message:
@@ -953,27 +958,35 @@ def inline_reg(driver, config_dict):
         force_adult_picker = config_dict["force_adult_picker"]
 
         # audit picker.
+        # force select
         is_adult_picker_assigned = assign_adult_picker(driver, adult_picker, force_adult_picker)
-        if show_debug_message:
-            print("is_adult_picker_assigned:", is_adult_picker_assigned)
-        
+        count = 0 
+        maxcount = 20
+        while not is_adult_picker_assigned and count < maxcount:
+            is_adult_picker_assigned = assign_adult_picker(driver, adult_picker, force_adult_picker)
+            count+=1
+
+        if not is_adult_picker_assigned:
+            return False
+
         # date picker.
         book_now_date = config_dict["book_now_date"]
-        print(book_now_date)
-        if is_adult_picker_assigned:
-            is_date_picked = assign_date_picker(driver, book_now_date)
+        is_date_picked = assign_date_picker(driver, book_now_date)
+        if show_debug_message:
+            print("assign_date_picker return:", is_date_picked)
 
+        if not is_date_picked:
+            return False
+                
         # time picker.
         book_now_time = config_dict["book_now_time"]
         book_now_time_alt = config_dict["book_now_time_alt"]
-        if is_adult_picker_assigned and is_date_picked:
-            ret = assign_time_picker(driver, book_now_time, book_now_time_alt)
-            if show_debug_message:
-                print("assign_time_picker return:", ret)
+        is_time_assign = assign_time_picker(driver, book_now_time, book_now_time_alt)
+        if show_debug_message:
+            print("assign_time_picker return:", is_time_assign)
+        
 
-        click_new_book_button(driver)
-
-    return ret
+    return is_time_assign
 
 def main():
     config_dict = get_config_dict()
@@ -1102,7 +1115,14 @@ def main():
                             ret = fill_personal_info(driver, config_dict)
                         else:
                             # select date.
-                            ret = inline_reg(driver, config_dict)
+                            reg_ret = inline_reg(driver, config_dict)
+                            while not reg_ret: 
+                                driver.refresh()
+                                time.sleep(5)
+                                reg_ret = inline_reg(driver, config_dict)
+
+                            click_new_book_button(driver) 
+                            
 
 
 if __name__ == "__main__":
